@@ -1,7 +1,9 @@
 package: github.com/terraform-providers/terraform-provider-helm
 import:
 - package: k8s.io/helm
-  version: v2.11.0
+  vcs:     git
+  repo:    git@github.com:pdecat/helm.git
+  version: v2.11.0-backport-5189
 - package: k8s.io/kubernetes
   version: release-1.11
 - package: k8s.io/client-go
