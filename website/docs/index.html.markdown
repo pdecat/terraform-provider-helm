@@ -83,6 +83,7 @@ The following arguments are supported:
 * `host` - (Required) Set an alternative Tiller host. The format is host:port. Can be sourced from `HELM_HOST`.
 * `home` - (Required) Set an alternative location for Helm files. By default, these are stored in '$HOME/.helm'. Can be sourced from `HELM_HOME`.
 * `namespace` - (Optional) Set an alternative Tiller namespace.
+* `init_helm_home` - (Optional) Initialize Helm home directory if it is not already initialized, defaults to true.
 * `install_tiller` - (Optional) Install Tiller if it is not already installed.
 * `tiller_image` - (Optional) Tiller image to install.
 * `service_account` - (Optional) Service account to install Tiller with.

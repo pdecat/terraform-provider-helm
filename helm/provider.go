@@ -1,6 +1,7 @@
 package helm
 
 import (
+	"bytes"
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
@@ -12,11 +13,12 @@ import (
 	"github.com/hashicorp/terraform/helper/resource"
 	"github.com/hashicorp/terraform/helper/schema"
 	"github.com/hashicorp/terraform/terraform"
-	"github.com/mitchellh/go-homedir"
+	homedir "github.com/mitchellh/go-homedir"
 
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+
 	// Import to initialize client auth plugins.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	"k8s.io/client-go/rest"
@@ -51,6 +53,12 @@ func Provider() terraform.ResourceProvider {
 				Optional:    true,
 				Default:     tiller_env.DefaultTillerNamespace,
 				Description: "Set an alternative Tiller namespace.",
+			},
+			"init_helm_home": {
+				Type:        schema.TypeBool,
+				Optional:    true,
+				Default:     true,
+				Description: "Initialize Helm home directory if it is not already initialized, defaults to true.",
 			},
 			"install_tiller": {
 				Type:        schema.TypeBool,
@@ -384,12 +392,37 @@ func (m *Meta) initialize() error {
 	m.Lock()
 	defer m.Unlock()
 
+	if err := m.initHelmHomeIfNeeded(m.data); err != nil {
+		return err
+	}
+
 	if err := m.installTillerIfNeeded(m.data); err != nil {
 		return err
 	}
 
 	if err := m.buildTunnel(m.data); err != nil {
 		return err
+	}
+
+	return nil
+}
+
+func (m *Meta) initHelmHomeIfNeeded(d *schema.ResourceData) error {
+	if !d.Get("init_helm_home").(bool) {
+		return nil
+	}
+
+	var buf bytes.Buffer
+
+	stableRepositoryURL := "https://kubernetes-charts.storage.googleapis.com"
+	localRepositoryURL := ""
+
+	if err := installer.Initialize(m.Settings.Home, &buf, true, *m.Settings, stableRepositoryURL, localRepositoryURL); err != nil {
+		if errors.IsAlreadyExists(err) {
+			return nil
+		}
+
+		return fmt.Errorf("error initializing local helm home: %s", err)
 	}
 
 	return nil
