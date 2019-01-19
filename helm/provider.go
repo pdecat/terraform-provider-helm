@@ -64,7 +64,7 @@ func Provider() terraform.ResourceProvider {
 				Type:        schema.TypeBool,
 				Optional:    true,
 				Default:     true,
-				Description: "Install Tiller if it is not already installed.",
+				Description: "Install Tiller if it is not already installed, defaults to true.",
 			},
 			"tiller_image": {
 				Type:        schema.TypeString,
