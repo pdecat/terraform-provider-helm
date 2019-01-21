@@ -30,7 +30,7 @@ func TestAccResourceRelease_basic(t *testing.T) {
 	// Delete namespace automatically created by helm after checks
 	defer deleteNamespace(t, namespace)
 
-	resource.Test(t, resource.TestCase{
+	resource.ParallelTest(t, resource.TestCase{
 		Providers:    testAccProviders,
 		CheckDestroy: testAccCheckHelmReleaseDestroy(namespace),
 		Steps: []resource.TestStep{{
@@ -60,6 +60,11 @@ func TestAccResourceRelease_concurrent(t *testing.T) {
 	// Delete namespace automatically created by helm after checks
 	defer deleteNamespace(t, namespace)
 
+	// This test case cannot be parallelized by using `resource.ParallelTest()` as calling `t.Parallel()` more than
+	// once in a single test case resuls in the following error:
+	// `panic: testing: t.Parallel called multiple times`
+	t.Parallel()
+
 	wg.Add(3)
 	for i := 0; i < 3; i++ {
 		go func(name string) {
@@ -88,7 +93,7 @@ func TestAccResourceRelease_update(t *testing.T) {
 	// Delete namespace automatically created by helm after checks
 	defer deleteNamespace(t, namespace)
 
-	resource.Test(t, resource.TestCase{
+	resource.ParallelTest(t, resource.TestCase{
 		Providers:    testAccProviders,
 		CheckDestroy: testAccCheckHelmReleaseDestroy(namespace),
 		Steps: []resource.TestStep{{
@@ -115,7 +120,7 @@ func TestAccResourceRelease_emptyValuesList(t *testing.T) {
 	// Delete namespace automatically created by helm after checks
 	defer deleteNamespace(t, namespace)
 
-	resource.Test(t, resource.TestCase{
+	resource.ParallelTest(t, resource.TestCase{
 		Providers:    testAccProviders,
 		CheckDestroy: testAccCheckHelmReleaseDestroy(namespace),
 		Steps: []resource.TestStep{{
@@ -137,7 +142,7 @@ func TestAccResourceRelease_updateValues(t *testing.T) {
 	// Delete namespace automatically created by helm after checks
 	defer deleteNamespace(t, namespace)
 
-	resource.Test(t, resource.TestCase{
+	resource.ParallelTest(t, resource.TestCase{
 		Providers:    testAccProviders,
 		CheckDestroy: testAccCheckHelmReleaseDestroy(namespace),
 		Steps: []resource.TestStep{{
@@ -168,7 +173,7 @@ func TestAccResourceRelease_updateMultipleValues(t *testing.T) {
 	// Delete namespace automatically created by helm after checks
 	defer deleteNamespace(t, namespace)
 
-	resource.Test(t, resource.TestCase{
+	resource.ParallelTest(t, resource.TestCase{
 		Providers:    testAccProviders,
 		CheckDestroy: testAccCheckHelmReleaseDestroy(namespace),
 		Steps: []resource.TestStep{{
@@ -201,7 +206,7 @@ func TestAccResourceRelease_repository(t *testing.T) {
 	// Delete namespace automatically created by helm after checks
 	defer deleteNamespace(t, namespace)
 
-	resource.Test(t, resource.TestCase{
+	resource.ParallelTest(t, resource.TestCase{
 		Providers: testAccProviders,
 		Steps: []resource.TestStep{{
 			Config: testAccHelmReleaseConfigRepository(testResourceName, namespace, name),
@@ -227,7 +232,7 @@ func TestAccResourceRelease_repository_url(t *testing.T) {
 	// Delete namespace automatically created by helm after checks
 	defer deleteNamespace(t, namespace)
 
-	resource.Test(t, resource.TestCase{
+	resource.ParallelTest(t, resource.TestCase{
 		Providers: testAccProviders,
 		Steps: []resource.TestStep{{
 			Config: testAccHelmReleaseConfigRepositoryURL(testResourceName, namespace, name),
@@ -266,7 +271,7 @@ func TestAccResourceRelease_updateAfterFail(t *testing.T) {
 	}
 	`
 
-	resource.Test(t, resource.TestCase{
+	resource.ParallelTest(t, resource.TestCase{
 		Providers:    testAccProviders,
 		CheckDestroy: testAccCheckHelmReleaseDestroy(namespace),
 		Steps: []resource.TestStep{{
@@ -290,7 +295,7 @@ func TestAccResourceRelease_updateExistingFailed(t *testing.T) {
 	// Delete namespace automatically created by helm after checks
 	defer deleteNamespace(t, namespace)
 
-	resource.Test(t, resource.TestCase{
+	resource.ParallelTest(t, resource.TestCase{
 		Providers:    testAccProviders,
 		CheckDestroy: testAccCheckHelmReleaseDestroy(namespace),
 		Steps: []resource.TestStep{{
@@ -336,7 +341,7 @@ func TestAccResourceRelease_updateVersionFromRelease(t *testing.T) {
 	}
 	chartPath := filepath.Join(dir, "mariadb")
 	defer os.RemoveAll(dir)
-	resource.Test(t, resource.TestCase{
+	resource.ParallelTest(t, resource.TestCase{
 		Providers:    testAccProviders,
 		CheckDestroy: testAccCheckHelmReleaseDestroy(namespace),
 		Steps: []resource.TestStep{{
@@ -495,7 +500,7 @@ func testAccHelmReleaseConfigRepositoryURL(resource, ns, name string) string {
 func testAccCheckHelmReleaseDestroy(namespace string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
 		// Fix for a flaky test
-		// Helm doesn't instantly delete it's releases causing this test to fail if not waited for a small period of time.
+		// Helm doesn't instantly delete its releases causing this test to fail if not waited for a small period of time.
 		// TODO: improve the workaround
 		time.Sleep(30 * time.Second)
 
