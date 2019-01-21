@@ -20,12 +20,15 @@ import (
 	"github.com/hashicorp/terraform/helper/resource"
 	"github.com/hashicorp/terraform/terraform"
 	yaml "gopkg.in/yaml.v1"
+	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/helm/pkg/helm"
 )
 
 func TestAccResourceRelease_basic(t *testing.T) {
 	name := fmt.Sprintf("test-basic-%s", acctest.RandString(10))
 	namespace := fmt.Sprintf("%s-%s", testNamespace, acctest.RandString(10))
+	// Delete namespace automatically created by helm after checks
+	defer deleteNamespace(t, namespace)
 
 	resource.Test(t, resource.TestCase{
 		Providers:    testAccProviders,
@@ -54,6 +57,8 @@ func TestAccResourceRelease_basic(t *testing.T) {
 func TestAccResourceRelease_concurrent(t *testing.T) {
 	var wg sync.WaitGroup
 	namespace := fmt.Sprintf("%s-%s", testNamespace, acctest.RandString(10))
+	// Delete namespace automatically created by helm after checks
+	defer deleteNamespace(t, namespace)
 
 	wg.Add(3)
 	for i := 0; i < 3; i++ {
@@ -80,6 +85,8 @@ func TestAccResourceRelease_concurrent(t *testing.T) {
 func TestAccResourceRelease_update(t *testing.T) {
 	name := fmt.Sprintf("test-update-%s", acctest.RandString(10))
 	namespace := fmt.Sprintf("%s-%s", testNamespace, acctest.RandString(10))
+	// Delete namespace automatically created by helm after checks
+	defer deleteNamespace(t, namespace)
 
 	resource.Test(t, resource.TestCase{
 		Providers:    testAccProviders,
@@ -105,6 +112,8 @@ func TestAccResourceRelease_update(t *testing.T) {
 func TestAccResourceRelease_emptyValuesList(t *testing.T) {
 	name := fmt.Sprintf("test-empty-values-list-%s", acctest.RandString(10))
 	namespace := fmt.Sprintf("%s-%s", testNamespace, acctest.RandString(10))
+	// Delete namespace automatically created by helm after checks
+	defer deleteNamespace(t, namespace)
 
 	resource.Test(t, resource.TestCase{
 		Providers:    testAccProviders,
@@ -125,6 +134,8 @@ func TestAccResourceRelease_emptyValuesList(t *testing.T) {
 func TestAccResourceRelease_updateValues(t *testing.T) {
 	name := fmt.Sprintf("test-update-values-%s", acctest.RandString(10))
 	namespace := fmt.Sprintf("%s-%s", testNamespace, acctest.RandString(10))
+	// Delete namespace automatically created by helm after checks
+	defer deleteNamespace(t, namespace)
 
 	resource.Test(t, resource.TestCase{
 		Providers:    testAccProviders,
@@ -154,6 +165,8 @@ func TestAccResourceRelease_updateValues(t *testing.T) {
 func TestAccResourceRelease_updateMultipleValues(t *testing.T) {
 	name := fmt.Sprintf("test-update-multiple-values-%s", acctest.RandString(10))
 	namespace := fmt.Sprintf("%s-%s", testNamespace, acctest.RandString(10))
+	// Delete namespace automatically created by helm after checks
+	defer deleteNamespace(t, namespace)
 
 	resource.Test(t, resource.TestCase{
 		Providers:    testAccProviders,
@@ -185,6 +198,8 @@ func TestAccResourceRelease_updateMultipleValues(t *testing.T) {
 func TestAccResourceRelease_repository(t *testing.T) {
 	name := fmt.Sprintf("test-repository-%s", acctest.RandString(10))
 	namespace := fmt.Sprintf("%s-%s", testNamespace, acctest.RandString(10))
+	// Delete namespace automatically created by helm after checks
+	defer deleteNamespace(t, namespace)
 
 	resource.Test(t, resource.TestCase{
 		Providers: testAccProviders,
@@ -209,6 +224,8 @@ func TestAccResourceRelease_repository(t *testing.T) {
 func TestAccResourceRelease_repository_url(t *testing.T) {
 	name := fmt.Sprintf("test-repository-url-%s", acctest.RandString(10))
 	namespace := fmt.Sprintf("%s-%s", testNamespace, acctest.RandString(10))
+	// Delete namespace automatically created by helm after checks
+	defer deleteNamespace(t, namespace)
 
 	resource.Test(t, resource.TestCase{
 		Providers: testAccProviders,
@@ -235,6 +252,9 @@ func TestAccResourceRelease_repository_url(t *testing.T) {
 func TestAccResourceRelease_updateAfterFail(t *testing.T) {
 	name := fmt.Sprintf("test-update-after-fail-%s", acctest.RandString(10))
 	namespace := fmt.Sprintf("%s-%s", testNamespace, acctest.RandString(10))
+	// Delete namespace automatically created by helm after checks
+	defer deleteNamespace(t, namespace)
+
 	malformed := `
 	resource "helm_release" "test" {
 		name        = "malformed"
@@ -267,6 +287,8 @@ func TestAccResourceRelease_updateAfterFail(t *testing.T) {
 func TestAccResourceRelease_updateExistingFailed(t *testing.T) {
 	name := fmt.Sprintf("test-update-existing-failed-%s", acctest.RandString(10))
 	namespace := fmt.Sprintf("%s-%s", testNamespace, acctest.RandString(10))
+	// Delete namespace automatically created by helm after checks
+	defer deleteNamespace(t, namespace)
 
 	resource.Test(t, resource.TestCase{
 		Providers:    testAccProviders,
@@ -305,6 +327,8 @@ func TestAccResourceRelease_updateExistingFailed(t *testing.T) {
 func TestAccResourceRelease_updateVersionFromRelease(t *testing.T) {
 	name := fmt.Sprintf("test-update-existing-failed-%s", acctest.RandString(10))
 	namespace := fmt.Sprintf("%s-%s", testNamespace, acctest.RandString(10))
+	// Delete namespace automatically created by helm after checks
+	defer deleteNamespace(t, namespace)
 
 	dir, err := ioutil.TempDir("", "")
 	if err != nil {
@@ -555,5 +579,22 @@ func unTar(dst string, r io.Reader) error {
 				return err
 			}
 		}
+	}
+}
+
+func deleteNamespace(t *testing.T, namespace string) {
+	m := testAccProvider.Meta()
+	if m == nil {
+		t.Fatal("provider not properly initialized")
+	}
+
+	t.Logf("[DEBUG] Deleting namespace %q", namespace)
+	gracePeriodSeconds := int64(0)
+	deleteOptions := meta_v1.DeleteOptions{
+		GracePeriodSeconds: &gracePeriodSeconds,
+	}
+	err := m.(*Meta).K8sClient.Core().Namespaces().Delete(namespace, &deleteOptions)
+	if err != nil {
+		t.Fatalf("An error occurred while deleting namespace %q: %q", namespace, err)
 	}
 }
