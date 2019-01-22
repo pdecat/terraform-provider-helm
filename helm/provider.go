@@ -260,6 +260,10 @@ func NewMeta(d *schema.ResourceData) (*Meta, error) {
 		return nil, err
 	}
 
+	if err := m.initHelmHomeIfNeeded(m.data); err != nil {
+		return nil, err
+	}
+
 	return m, nil
 }
 
@@ -391,10 +395,6 @@ func (m *Meta) GetHelmClient() (helm.Interface, error) {
 func (m *Meta) initialize() error {
 	m.Lock()
 	defer m.Unlock()
-
-	if err := m.initHelmHomeIfNeeded(m.data); err != nil {
-		return err
-	}
 
 	if err := m.installTillerIfNeeded(m.data); err != nil {
 		return err
